@@ -11,3 +11,4 @@ $(BIN): $(SRC)
 	go build -o $@ $<
 
 exec:
+	./$(BIN)
