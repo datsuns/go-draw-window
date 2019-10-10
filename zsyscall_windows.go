@@ -38,14 +38,20 @@ func errnoErr(e syscall.Errno) error {
 
 var (
 	moduser32 = windows.NewLazySystemDLL("user32.dll")
+	modgdi32  = windows.NewLazySystemDLL("gdi32.dll")
 
-	procGetDC     = moduser32.NewProc("GetDC")
-	procReleaseDC = moduser32.NewProc("ReleaseDC")
+	procGetDC            = moduser32.NewProc("GetDC")
+	procReleaseDC        = moduser32.NewProc("ReleaseDC")
+	procBeginPaint       = moduser32.NewProc("BeginPaint")
+	procEndPaint         = moduser32.NewProc("EndPaint")
+	procGetDesktopWindow = moduser32.NewProc("GetDesktopWindow")
+	procLineTo           = modgdi32.NewProc("LineTo")
+	procMoveToEx         = modgdi32.NewProc("MoveToEx")
 )
 
-func GetDC(hwnd uintptr) (hdc uintptr, err error) {
+func GetDC(hwnd syscall.Handle) (hdc syscall.Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procGetDC.Addr(), 1, uintptr(hwnd), 0, 0)
-	hdc = uintptr(r0)
+	hdc = syscall.Handle(r0)
 	if hdc == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -56,8 +62,73 @@ func GetDC(hwnd uintptr) (hdc uintptr, err error) {
 	return
 }
 
-func ReleaseDC(hwnd uintptr, hdc uintptr) (succeeded int, err error) {
+func ReleaseDC(hwnd syscall.Handle, hdc syscall.Handle) (succeeded int, err error) {
 	r0, _, e1 := syscall.Syscall(procReleaseDC.Addr(), 2, uintptr(hwnd), uintptr(hdc), 0)
+	succeeded = int(r0)
+	if succeeded == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func BeginPaint(hwnd syscall.Handle, lpPaint *PAINTSTRUCT) (hdc syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procBeginPaint.Addr(), 2, uintptr(hwnd), uintptr(unsafe.Pointer(lpPaint)), 0)
+	hdc = syscall.Handle(r0)
+	if hdc == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func EndPaint(hwnd syscall.Handle, lpPaint *PAINTSTRUCT) (succeeded int, err error) {
+	r0, _, e1 := syscall.Syscall(procEndPaint.Addr(), 2, uintptr(hwnd), uintptr(unsafe.Pointer(lpPaint)), 0)
+	succeeded = int(r0)
+	if succeeded == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetDesktopWindow() (hwnd syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procGetDesktopWindow.Addr(), 0, 0, 0, 0)
+	hwnd = syscall.Handle(r0)
+	if hwnd == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func LineTo(hwnd syscall.Handle, x int32, y int32) (succeeded int, err error) {
+	r0, _, e1 := syscall.Syscall(procLineTo.Addr(), 3, uintptr(hwnd), uintptr(x), uintptr(y))
+	succeeded = int(r0)
+	if succeeded == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func MoveToEx(hwnd syscall.Handle, x int32, y int32, lppt *POINT) (succeeded int, err error) {
+	r0, _, e1 := syscall.Syscall6(procMoveToEx.Addr(), 4, uintptr(hwnd), uintptr(x), uintptr(y), uintptr(unsafe.Pointer(lppt)), 0, 0)
 	succeeded = int(r0)
 	if succeeded == 0 {
 		if e1 != 0 {
