@@ -37,15 +37,29 @@ func errnoErr(e syscall.Errno) error {
 }
 
 var (
-	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	moduser32 = windows.NewLazySystemDLL("user32.dll")
 
-	procFormatMessageW = modkernel32.NewProc("FormatMessageW")
+	procGetDC     = moduser32.NewProc("GetDC")
+	procReleaseDC = moduser32.NewProc("ReleaseDC")
 )
 
-func FormatMessage(flags uint32, source syscall.Handle, messageID uint32, languageID uint32, buffer *byte, bufferSize uint32, arguments uintptr) (numChars uint32, err error) {
-	r0, _, e1 := syscall.Syscall9(procFormatMessageW.Addr(), 7, uintptr(flags), uintptr(source), uintptr(messageID), uintptr(languageID), uintptr(unsafe.Pointer(buffer)), uintptr(bufferSize), uintptr(arguments), 0, 0)
-	numChars = uint32(r0)
-	if numChars == 0 {
+func GetDC(hwnd uintptr) (hdc uintptr, err error) {
+	r0, _, e1 := syscall.Syscall(procGetDC.Addr(), 1, uintptr(hwnd), 0, 0)
+	hdc = uintptr(r0)
+	if hdc == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func ReleaseDC(hwnd uintptr, hdc uintptr) (succeeded int, err error) {
+	r0, _, e1 := syscall.Syscall(procReleaseDC.Addr(), 2, uintptr(hwnd), uintptr(hdc), 0)
+	succeeded = int(r0)
+	if succeeded == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {

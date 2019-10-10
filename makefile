@@ -11,7 +11,7 @@ default: build exec
 build: dllgen $(BIN)
 
 $(BIN): $(SRC)
-	go build -o $@ $<
+	go build -o $@ $(SRC)
 
 dllgen:
 	cd util && go generate && mv zsyscall_windows.go ..
